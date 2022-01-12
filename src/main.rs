@@ -1,13 +1,15 @@
-mod lattice;
+mod sim;
 
-use lattice::Lattice;
+use sim::lattice::Lattice;
 
 fn main() {
+    // simulation parameters
+    let ti = 10.0;
+    let tf = 0.02;
+    let step = 0.01;
     // initialize lattice
-    let mut lat = Lattice::square(4);
-    lat.fill(0.25);
-}
-
-fn step(lattice: &mut Lattice) {
-
+    let mut lat = Lattice::square(10);
+    lat.fill_block(0.5);
+    sim::anneal(&mut lat, ti, tf, step);
+    sim::draw_lattice(&lat);
 }

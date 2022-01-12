@@ -1,10 +1,9 @@
-use rand;
 use rand::{thread_rng, Rng};
 use std::collections::HashSet;
 
 pub struct VecSet<T> {
-    set: HashSet<T>,
-    vec: Vec<T>,
+    pub set: HashSet<T>,
+    pub vec: Vec<T>,
 }
 
 impl<T> VecSet<T> 
@@ -49,19 +48,16 @@ where T: Clone + Eq + std::hash:: Hash {
         res
     }
 
-    fn contains(&self, elem: &T) -> bool {
+    pub fn contains(&self, elem: &T) -> bool {
         self.set.contains(elem)
     }
 
-    fn is_empty(&self) -> bool {
-        assert_eq!(self.set.len(), self.vec.len());
-        self.vec.is_empty()
-    }
 }
 
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct Point {
-    pub position: [i16; 2],
+    pub x: i16,
+    pub y: i16,
 }
 
 pub struct Lattice {
@@ -74,7 +70,15 @@ pub struct Lattice {
 // Methods
 impl Lattice {
 
-    pub fn fill(&mut self, frac: f32) {
+    pub fn fill_block(&mut self, frac: f32) {
+        let amount = frac * (self.n) as f32;
+        self.occupied.clear();
+        for i in 0..amount as usize {
+            self.occupied.insert(i)
+        }
+    }
+
+    pub fn fill_random(&mut self, frac: f32) {
         let mut rng = rand::thread_rng();
         let amount = frac * (self.n) as f32;
         let indexvec = rand::seq::index::sample(&mut rng, self.n, amount as usize);
@@ -84,8 +88,37 @@ impl Lattice {
         }
     }
 
-    fn propose_moves<R>(&mut self, rng: &mut R) -> Vec<usize>
+    pub fn boundaries(&self) -> [i16; 4] {
+        let mut xmin: i16 = 32767;
+        let mut xmax: i16 = -32767;
+        let mut ymin: i16 = 32767;
+        let mut ymax: i16 = -32767;
+        for p in &self.points {
+            if p.x < xmin {
+                xmin = p.x;
+            }
+            if p.x > xmax {
+                xmax = p.x;
+            }
+            if p.y < ymin {
+                ymin = p.y;
+            }
+            if p.y > ymax {
+                ymax = p.y;
+            }
+        }
+        [xmin, xmax, ymin, ymax]
+    }
+
+    pub fn perform_move<R>(&mut self, rng: &mut R, temp: &f32)
     where R: rand::Rng + ?Sized {
+        let target_indices = self.remove_and_propose_moves();
+        let target_energies = self.get_energies(&target_indices);
+        let destination_index = self.choose_move(rng, &target_indices, &target_energies, temp);
+        self.occupied.insert(destination_index);
+    }
+
+    fn remove_and_propose_moves(&mut self) -> Vec<usize> {
         // find a random occupied point and make it unoccupied
         let idx = self.occupied.remove_random();
         // get its neighbors
@@ -110,8 +143,29 @@ impl Lattice {
         res
     }
 
-    fn choose_move(&mut self, targets: &Vec<usize>, energies: &Vec<f32>) {
-
+    fn choose_move<R>(&mut self, rng: &mut R, targets: &Vec<usize>, energies: &Vec<f32>, temp: &f32) -> usize 
+    where R: rand::Rng + ?Sized {
+        if targets.len() == 1 {
+            return targets[0]
+        }
+        // canonical ensemble state transition
+        let rel_probabilities: Vec<f32> = energies.iter().map(|e| 10000.0 * libm::expf(-e/temp)).collect();
+        let partition: f32 = rel_probabilities.iter().sum();
+        println!("{}", partition);
+        let probabilities: Vec<f32> = rel_probabilities.iter().map(|p| p / partition).collect();
+        // choose an index from targets
+        let r: f32 = rng.gen_range(0.0..1.0);
+        let mut c: f32 = 0.0;
+        let mut i: usize = 0;
+        println!("{:?}", probabilities);
+        for p in probabilities {
+            c += p;
+            if r < c {
+                break;
+            }
+            i += 1;
+        }
+        targets[i]
     }
 }
 
@@ -136,7 +190,7 @@ impl Lattice {
             for j in 0..n {
                 let x = i.try_into().unwrap();
                 let y = j.try_into().unwrap();
-                pts.push(Point {position: [x, y]})
+                pts.push(Point {x: x, y: y})
             }
         }
         // generate adjacencies, (i,j) adjacent to (i+/-1, j), (i, j+/-1)
