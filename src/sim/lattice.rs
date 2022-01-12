@@ -65,6 +65,7 @@ pub struct Lattice {
     pub points: Vec<Point>,
     pub occupied: VecSet<usize>, // indices into points
     pub adjacency: Vec<Vec<usize>>, // adjacency list for points
+    pub boundaries: Option<[i16; 4]>, // xmin, xmax, ymin, ymax of points
 }
 
 // Methods
@@ -88,26 +89,34 @@ impl Lattice {
         }
     }
 
-    pub fn boundaries(&self) -> [i16; 4] {
-        let mut xmin: i16 = 32767;
-        let mut xmax: i16 = -32767;
-        let mut ymin: i16 = 32767;
-        let mut ymax: i16 = -32767;
-        for p in &self.points {
-            if p.x < xmin {
-                xmin = p.x;
-            }
-            if p.x > xmax {
-                xmax = p.x;
-            }
-            if p.y < ymin {
-                ymin = p.y;
-            }
-            if p.y > ymax {
-                ymax = p.y;
+    pub fn boundaries(&mut self) -> [i16; 4] {
+        match self.boundaries {
+            Some(_) => {
+                self.boundaries.unwrap()
+            },
+            None => {
+                let mut xmin: i16 = 32767;
+                let mut xmax: i16 = -32767;
+                let mut ymin: i16 = 32767;
+                let mut ymax: i16 = -32767;
+                for p in &self.points {
+                    if p.x < xmin {
+                        xmin = p.x;
+                    }
+                    if p.x > xmax {
+                        xmax = p.x;
+                    }
+                    if p.y < ymin {
+                        ymin = p.y;
+                    }
+                    if p.y > ymax {
+                        ymax = p.y;
+                    }
+                }
+                self.boundaries = Some([xmin, xmax, ymin, ymax]);
+                self.boundaries.unwrap()
             }
         }
-        [xmin, xmax, ymin, ymax]
     }
 
     pub fn perform_move<R>(&mut self, rng: &mut R, temp: &f32)
@@ -151,13 +160,11 @@ impl Lattice {
         // canonical ensemble state transition
         let rel_probabilities: Vec<f32> = energies.iter().map(|e| 10000.0 * libm::expf(-e/temp)).collect();
         let partition: f32 = rel_probabilities.iter().sum();
-        println!("{}", partition);
         let probabilities: Vec<f32> = rel_probabilities.iter().map(|p| p / partition).collect();
         // choose an index from targets
         let r: f32 = rng.gen_range(0.0..1.0);
         let mut c: f32 = 0.0;
         let mut i: usize = 0;
-        println!("{:?}", probabilities);
         for p in probabilities {
             c += p;
             if r < c {
@@ -174,7 +181,7 @@ impl Lattice {
 
     pub fn new(pts: Vec<Point>, adj: Vec<Vec<usize>>) -> Self {
         // see https://stackoverflow.com/questions/65375808/how-to-validate-struct-creation
-        Self {n: pts.len(), points: pts, occupied: VecSet::new(), adjacency: adj}
+        Self {n: pts.len(), points: pts, occupied: VecSet::new(), adjacency: adj, boundaries: None}
     }
 
     // creates triangular NxN lattice with wraparound boundary conditions
