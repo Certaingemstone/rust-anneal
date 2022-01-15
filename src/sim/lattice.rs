@@ -180,18 +180,54 @@ impl Lattice {
 impl Lattice {
 
     pub fn new(pts: Vec<Point>, adj: Vec<Vec<usize>>) -> Self {
-        // see https://stackoverflow.com/questions/65375808/how-to-validate-struct-creation
+        // add validation?
         Self {n: pts.len(), points: pts, occupied: VecSet::new(), adjacency: adj, boundaries: None}
     }
 
     // creates triangular NxN lattice with wraparound boundary conditions
-    //pub fn triangular(N: i16) -> Result<Self, ()> {
-    //    new(pts, adj)
-    //}
+    pub fn triangular(n: usize) -> Self {
+        let mut pts: Vec<Point> = Vec::with_capacity(n*n);
+        // points
+        for i in 0..n {
+            let shift = i % 2;
+            for j in 0..n {
+                let x = (2 * i + shift).try_into().unwrap();
+                let y = (2 * j).try_into().unwrap();
+                pts.push(Point {x: x, y: y})
+            }
+        }
+        // adjacencies, (i,j) adj to (i+/-1, j), (i, j+/-1), (i+1, j+1), (i-1, j-1)
+        let mut adj_list: Vec<Vec<usize>> = Vec::with_capacity(n);
+        let offset: i32 = (n*n).try_into().unwrap();
+        for i in 0..n*n {
+
+            let j: i32 = i.try_into().unwrap();
+            let m: i32 = n.try_into().unwrap();
+
+            let mut l: i32 = j - m;
+            let mut d: i32 = j - 1;
+            let mut x: i32 = j - m - 1;
+            let mut r: i32 = j + m;
+            let mut u: i32 = j + 1;
+            let mut y: i32 = j + m + 1;
+
+            if l < 0 { l += offset; }
+            if d < 0 { d += offset; }
+            if x < 0 { x += offset; }
+            if r >= offset { r -= offset; }
+            if u >= offset { u -= offset; }
+            if y >= offset { y -= offset; }
+
+            adj_list.push(vec![l.try_into().unwrap(), r.try_into().unwrap(), 
+                u.try_into().unwrap(), d.try_into().unwrap(), 
+                x.try_into().unwrap(), y.try_into().unwrap()]);
+        }
+        Lattice::new(pts, adj_list)
+    }
 
     // creates square NxN lattice with wraparound boundary conditions
     pub fn square(n: usize) -> Self {
-        // generate points
+        // points
         let mut pts: Vec<Point> = Vec::with_capacity(n*n);
         for i in 0..n {
             for j in 0..n {
@@ -200,7 +236,7 @@ impl Lattice {
                 pts.push(Point {x: x, y: y})
             }
         }
-        // generate adjacencies, (i,j) adjacent to (i+/-1, j), (i, j+/-1)
+        // adjacencies, (i,j) adjacent to (i+/-1, j), (i, j+/-1)
         let mut adj_list: Vec<Vec<usize>> = Vec::with_capacity(n);
         let last_col_start = n*n - n;
         for i in 0..n*n {
