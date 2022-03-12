@@ -158,7 +158,7 @@ impl Lattice {
             return targets[0]
         }
         // canonical ensemble state transition
-        let rel_probabilities: Vec<f32> = energies.iter().map(|e| 10000.0 * libm::expf(-e/temp)).collect();
+        let rel_probabilities: Vec<f32> = energies.iter().map(|e| libm::expf(-e/temp)).collect();
         let partition: f32 = rel_probabilities.iter().sum();
         let probabilities: Vec<f32> = rel_probabilities.iter().map(|p| p / partition).collect();
         // choose an index from targets
@@ -172,6 +172,7 @@ impl Lattice {
             }
             i += 1;
         }
+        if i == targets.len() { i -= 1; }
         targets[i]
     }
 }
@@ -191,8 +192,8 @@ impl Lattice {
         for i in 0..n {
             let shift = i % 2;
             for j in 0..n {
-                let x = (2 * i + shift).try_into().unwrap();
-                let y = (2 * j).try_into().unwrap();
+                let x = (2 * i).try_into().unwrap();
+                let y = (2 * j + shift).try_into().unwrap();
                 pts.push(Point {x: x, y: y})
             }
         }
@@ -206,7 +207,7 @@ impl Lattice {
 
             let mut l: i32 = j - m;
             let mut d: i32 = j - 1;
-            let mut x: i32 = j - m - 1;
+            let mut x: i32 = j - m + 1;
             let mut r: i32 = j + m;
             let mut u: i32 = j + 1;
             let mut y: i32 = j + m + 1;
